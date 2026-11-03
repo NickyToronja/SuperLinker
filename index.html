@@ -4,69 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SuperLinker</title>
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
-
-    // REEMPLAZA ESTOS DATOS CON LOS DE TU PROYECTO DE SUPABASE
-    const SUPABASE_URL = 'https://tu-proyecto.supabase.co'
-    const SUPABASE_ANON_KEY = 'tu-clave-anon-key'
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-
-    const app = document.getElementById('app')
-    const urlParams = new URLSearchParams(window.location.search)
-    const username = urlParams.get('u')
-
-    async function init() {
-      if (username) {
-        // --- VISTA PÚBLICA DEL PERFIL ---
-        app.innerHTML = `<div class="loading">Cargando perfil de @${username}...</div>`
-        
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('username', username.toLowerCase())
-          .single()
-
-        if (error || !profile) {
-          app.innerHTML = `
-            <div class="card">
-              <h2>404</h2>
-              <p>El perfil <strong>@${username}</strong> no existe.</p>
-              <a href="?" class="btn">Crear mi SuperLinker</a>
-            </div>`
-          return
-        }
-
-        let linksHTML = (profile.links || []).map(link => `
-          <a href="${link.url}" target="_blank" class="link-btn">${link.title}</a>
-        `).join('')
-
-        app.innerHTML = `
-          <div class="card profile-view">
-            <img src="${profile.avatar_url || 'https://via.placeholder.com/100'}" class="avatar" alt="Avatar" />
-            <h1>${profile.full_name || username}</h1>
-            <p>${profile.bio || ''}</p>
-            <div class="links-container">
-              ${linksHTML}
-            </div>
-            <footer class="footer">Creado con SuperLinker</footer>
-          </div>`
-      } else {
-        // --- LANDING / LOGIN / REGISTRO BÁSICO ---
-        app.innerHTML = `
-          <div class="card">
-            <h1>🚀 SuperLinker</h1>
-            <p>Crea tu propia página de enlaces gratis.</p>
-            <hr style="border:0; border-top:1px solid #334155; margin: 1.5rem 0;">
-            <h3>Ver un ejemplo:</h3>
-            <a href="?u=nickytoronja" class="btn secondary">Ver perfil de ejemplo</a>
-          </div>`
-      }
-    }
-
-    init()
-  </script>
-
   <style>
     body {
       font-family: system-ui, -apple-system, sans-serif;
@@ -78,6 +15,7 @@
       min-height: 100vh;
       margin: 0;
       padding: 1rem;
+      box-sizing: border-box;
     }
     .card {
       background: #1e293b;
@@ -85,7 +23,7 @@
       padding: 2rem;
       border-radius: 16px;
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
       text-align: center;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
     }
@@ -98,6 +36,7 @@
       border: 2px solid #38bdf8;
     }
     h1 { margin: 0 0 0.5rem 0; font-size: 1.5rem; }
+    h2 { font-size: 1.2rem; margin-bottom: 1rem; }
     p { color: #94a3b8; margin-bottom: 1.5rem; font-size: 0.95rem; }
     .links-container {
       display: flex;
@@ -107,22 +46,216 @@
     }
     .link-btn, .btn {
       display: block;
+      width: 100%;
       padding: 0.75rem 1rem;
       background-color: #38bdf8;
       color: #0f172a;
       text-decoration: none;
       border-radius: 8px;
       font-weight: bold;
-      transition: opacity 0.2s;
+      border: none;
+      cursor: pointer;
+      box-sizing: border-box;
+      font-size: 0.95rem;
     }
     .link-btn { background-color: #334155; color: #f8fafc; border: 1px solid #475569; }
     .link-btn:hover { background-color: #475569; }
     .btn.secondary { background-color: transparent; color: #38bdf8; border: 1px solid #38bdf8; }
+    .btn.danger { background-color: #ef4444; color: white; margin-top: 1rem; }
     .footer { margin-top: 2rem; font-size: 0.75rem; color: #64748b; }
-    .loading { color: #94a3b8; }
+    input {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background-color: #0f172a;
+      color: white;
+      box-sizing: border-box;
+    }
+    .link-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .link-row input { margin-bottom: 0; }
+    .btn-icon { width: auto; padding: 0.75rem; background: #ef4444; color: white; border-radius: 8px; border: none; cursor: pointer; }
   </style>
 </head>
 <body>
-  <div id="app"></div>
+  <div id="app"><div class="card"><p>Cargando SuperLinker...</p></div></div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+    // ⚠️ CAMBIA ESTOS DOS VALORES CON TUS CLAVES DE SUPABASE
+    const SUPABASE_URL = 'https://tu-proyecto.supabase.co'
+    const SUPABASE_ANON_KEY = 'tu-clave-anon-key'
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    const app = document.getElementById('app')
+    const urlParams = new URLSearchParams(window.location.search)
+    const usernameParam = urlParams.get('u')
+
+    async function init() {
+      if (usernameParam) {
+        // --- VISTA PÚBLICA DEL PERFIL ---
+        renderPublicProfile(usernameParam)
+      } else {
+        // --- COMPROBAR SI HAY SESIÓN ACTIVA ---
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          renderDashboard(session.user)
+        } else {
+          renderAuthForm()
+        }
+      }
+    }
+
+    // 1. DIBUJAR PERFIL PÚBLICO
+    async function renderPublicProfile(username) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('username', username.toLowerCase())
+        .single()
+
+      if (!profile) {
+        app.innerHTML = `<div class="card"><h2>404</h2><p>El perfil @${username} no existe.</p><a href="?" class="btn">Crear mi cuenta</a></div>`
+        return
+      }
+
+      const linksHTML = (profile.links || []).map(l => `<a href="${l.url}" target="_blank" class="link-btn">${l.title}</a>`).join('')
+      app.innerHTML = `
+        <div class="card">
+          <img src="${profile.avatar_url || 'https://via.placeholder.com/100'}" class="avatar" />
+          <h1>${profile.full_name || profile.username}</h1>
+          <p>${profile.bio || ''}</p>
+          <div class="links-container">${linksHTML}</div>
+          <footer class="footer">Creado con SuperLinker</footer>
+        </div>`
+    }
+
+    // 2. DIBUJAR LOGIN / REGISTRO
+    function renderAuthForm() {
+      app.innerHTML = `
+        <div class="card">
+          <h1>🚀 SuperLinker</h1>
+          <p>Entra o regístrate para gestionar tus enlaces.</p>
+          <input type="email" id="email" placeholder="Correo electrónico" />
+          <input type="password" id="password" placeholder="Contraseña" />
+          <button id="btnLogin" class="btn" style="margin-bottom:0.5rem">Iniciar Sesión</button>
+          <button id="btnRegister" class="btn secondary">Registrarse</button>
+        </div>`
+
+      document.getElementById('btnLogin').onclick = async () => {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value
+        })
+        if (error) alert(error.message)
+        else init()
+      }
+
+      document.getElementById('btnRegister').onclick = async () => {
+        const { error } = await supabase.auth.signUp({
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value
+        })
+        if (error) alert(error.message)
+        else alert('¡Registro completado! Ya puedes iniciar sesión.')
+      }
+    }
+
+    // 3. PANEL DE CONTROL (EDITAR PERFIL Y LINKS)
+    async function renderDashboard(user) {
+      let { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+      let links = profile?.links || []
+
+      app.innerHTML = `
+        <div class="card" style="text-align:left">
+          <h1>Mi Panel</h1>
+          <p>Gestiona tu información pública.</p>
+          
+          <label style="font-size:0.8rem">Username (Único para tu URL):</label>
+          <input type="text" id="dbUsername" value="${profile?.username || ''}" placeholder="ej: nickytoronja" />
+          
+          <label style="font-size:0.8rem">Nombre visible:</label>
+          <input type="text" id="dbName" value="${profile?.full_name || ''}" placeholder="Tu Nombre" />
+          
+          <label style="font-size:0.8rem">Foto de perfil:</label>
+          <input type="file" id="dbAvatarFile" accept="image/*" />
+
+          <h2>Tus Enlaces</h2>
+          <div id="linksList"></div>
+          <button id="btnAddLink" class="btn secondary" style="margin-top:0.5rem">+ Añadir Enlace</button>
+          
+          <hr style="border:0; border-top:1px solid #334155; margin: 1.5rem 0;">
+          <button id="btnSave" class="btn">Guardar Cambios</button>
+          ${profile?.username ? `<a href="?u=${profile.username}" target="_blank" class="btn secondary" style="margin-top:0.5rem; text-align:center">Ver mi web pública</a>` : ''}
+          <button id="btnLogout" class="btn danger">Cerrar Sesión</button>
+        </div>`
+
+      function renderLinksInputs() {
+        const container = document.getElementById('linksList')
+        container.innerHTML = links.map((l, i) => `
+          <div class="link-row">
+            <input type="text" value="${l.title}" placeholder="Título (ej: YouTube)" onchange="window.updateLink(${i}, 'title', this.value)" />
+            <input type="text" value="${l.url}" placeholder="https://..." onchange="window.updateLink(${i}, 'url', this.value)" />
+            <button class="btn-icon" onclick="window.removeLink(${i})">✕</button>
+          </div>
+        `).join('')
+      }
+
+      window.updateLink = (i, field, val) => { links[i][field] = val }
+      window.removeLink = (i) => { links.splice(i, 1); renderLinksInputs() }
+      document.getElementById('btnAddLink').onclick = () => { links.push({ title: '', url: '' }); renderLinksInputs() }
+      
+      renderLinksInputs()
+
+      // GUARDAR DATOS Y SUBIR FOTO
+      document.getElementById('btnSave').onclick = async () => {
+        const username = document.getElementById('dbUsername').value.toLowerCase().trim()
+        const fullName = document.getElementById('dbName').value
+        const fileInput = document.getElementById('dbAvatarFile')
+        let avatarUrl = profile?.avatar_url || ''
+
+        if (!username) return alert('Por favor escribe un nombre de usuario.')
+
+        // Subir foto a Storage si seleccionó archivo
+        if (fileInput.files.length > 0) {
+          const file = fileInput.files[0]
+          const filePath = `${user.id}/${Date.now()}_${file.name}`
+          const { error: uploadErr } = await supabase.storage.from('avatars').upload(filePath, file)
+          if (!uploadErr) {
+            const { data } = supabase.storage.from('avatars').getPublicUrl(filePath)
+            avatarUrl = data.publicUrl
+          }
+        }
+
+        // Guardar/Actualizar en la BD
+        const { error } = await supabase.from('profiles').upsert({
+          id: user.id,
+          username: username,
+          full_name: fullName,
+          avatar_url: avatarUrl,
+          links: links
+        })
+
+        if (error) alert('Error al guardar: ' + error.message)
+        else {
+          alert('¡Perfil actualizado con éxito!')
+          init()
+        }
+      }
+
+      document.getElementById('btnLogout').onclick = async () => {
+        await supabase.auth.signOut()
+        init()
+      }
+    }
+
+    init()
+  </script>
 </body>
 </html>
