@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SuperLinker</title>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+    // REEMPLAZA ESTOS DATOS CON LOS DE TU PROYECTO DE SUPABASE
+    const SUPABASE_URL = 'https://tu-proyecto.supabase.co'
+    const SUPABASE_ANON_KEY = 'tu-clave-anon-key'
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    const app = document.getElementById('app')
+    const urlParams = new URLSearchParams(window.location.search)
+    const username = urlParams.get('u')
+
+    async function init() {
+      if (username) {
+        // --- VISTA PÚBLICA DEL PERFIL ---
+        app.innerHTML = `<div class="loading">Cargando perfil de @${username}...</div>`
+        
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('username', username.toLowerCase())
+          .single()
+
+        if (error || !profile) {
+          app.innerHTML = `
+            <div class="card">
+              <h2>404</h2>
+              <p>El perfil <strong>@${username}</strong> no existe.</p>
+              <a href="?" class="btn">Crear mi SuperLinker</a>
+            </div>`
+          return
+        }
+
+        let linksHTML = (profile.links || []).map(link => `
+          <a href="${link.url}" target="_blank" class="link-btn">${link.title}</a>
+        `).join('')
+
+        app.innerHTML = `
+          <div class="card profile-view">
+            <img src="${profile.avatar_url || 'https://via.placeholder.com/100'}" class="avatar" alt="Avatar" />
+            <h1>${profile.full_name || username}</h1>
+            <p>${profile.bio || ''}</p>
+            <div class="links-container">
+              ${linksHTML}
+            </div>
+            <footer class="footer">Creado con SuperLinker</footer>
+          </div>`
+      } else {
+        // --- LANDING / LOGIN / REGISTRO BÁSICO ---
+        app.innerHTML = `
+          <div class="card">
+            <h1>🚀 SuperLinker</h1>
+            <p>Crea tu propia página de enlaces gratis.</p>
+            <hr style="border:0; border-top:1px solid #334155; margin: 1.5rem 0;">
+            <h3>Ver un ejemplo:</h3>
+            <a href="?u=nickytoronja" class="btn secondary">Ver perfil de ejemplo</a>
+          </div>`
+      }
+    }
+
+    init()
+  </script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1rem;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 2rem;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+    .avatar {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 1rem;
+      border: 2px solid #38bdf8;
+    }
+    h1 { margin: 0 0 0.5rem 0; font-size: 1.5rem; }
+    p { color: #94a3b8; margin-bottom: 1.5rem; font-size: 0.95rem; }
+    .links-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+    .link-btn, .btn {
+      display: block;
+      padding: 0.75rem 1rem;
+      background-color: #38bdf8;
+      color: #0f172a;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: bold;
+      transition: opacity 0.2s;
+    }
+    .link-btn { background-color: #334155; color: #f8fafc; border: 1px solid #475569; }
+    .link-btn:hover { background-color: #475569; }
+    .btn.secondary { background-color: transparent; color: #38bdf8; border: 1px solid #38bdf8; }
+    .footer { margin-top: 2rem; font-size: 0.75rem; color: #64748b; }
+    .loading { color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+</body>
+</html>
